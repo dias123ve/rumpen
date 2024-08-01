@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PDF Text Replacement</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.2.0/pdf.min.js"></script>
+  </head>
+  <body>
+    <input type="file" id="upload" accept=".pdf" />
+    <button id="replaceText">Replace Text</button>
+    <script>
+      document
+        .getElementById("replaceText")
+        .addEventListener("click", async () => {
+          const fileInput = document.getElementById("upload");
+          if (fileInput.files.length === 0) {
+            alert("Please upload a PDF file first.");
+            return;
+          }
+
+          const file = fileInput.files[0];
+          const fileUrl = URL.createObjectURL(file);
+
+          // Extract text using pdf.js
+          const extractTextFromPdf = async (url) => {
+            const loadingTask = pdfjsLib.getDocument(url);
+            const pdf = await loadingTask.promise;
+            const numPages = pdf.numPages;
+            let textContent = "";
+
+            for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+              const page = await pdf.getPage(pageNum);
+              const text = await page.getTextContent();
+              textContent += text.items.map((item) => item.str).join(" ");
+            }
+
+            return textContent;
+          };
+
+          // Replace text using pdf-lib
+          const replaceTextInPdf = async (oldText, newText, pdfUrl) => {
+            const pdfBytes = await fetch(pdfUrl).then((res) =>
+              res.arrayBuffer()
+            );
+            const pdfDoc = await PDFLib.PDFDocument.load(pdfBytes);
+            const pages = pdfDoc.getPages();
+
+            // Asumsikan kita mengganti teks di halaman pertama
+            const page = pages[0];
+            const { width, height } = page.getSize();
+
+            // Tentukan posisi dan ukuran teks baru
+            const x = 50;
+            const y = height - 150;
+            const size = 30;
+
+            // Gambar teks baru
+            page.drawText(newText, {
+              x,
+              y,
+              size,
+              color: PDFLib.rgb(0, 0, 0),
+            });
+
+            // Simpan PDF yang dimodifikasi
+            const pdfBytes2 = await pdfDoc.save();
+            return pdfBytes2;
+          };
+
+          const oldText = "Text to replace"; // Ubah sesuai kebutuhan
+          const newText = "New text"; // Ubah sesuai kebutuhan
+
+          const extractedText = await extractTextFromPdf(fileUrl);
+          const modifiedPdfBytes = await replaceTextInPdf(
+            oldText,
+            newText,
+            fileUrl
+          );
+
+          // Download PDF yang dimodifikasi
+          const blob = new Blob([modifiedPdfBytes], {
+            type: "application/pdf",
+          });
+          const url = URL.createObjectURL(blob);
+          window.open(url);
+        });
+    </script>
+  </body>
+</html>
